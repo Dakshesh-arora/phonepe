@@ -1,0 +1,72 @@
+<?php
+echo "<center><h2>PhonePe Payment Gateway Integration</h2></center>";
+
+// Replace these with your actual PhonePe API credentials
+$apiKey = '6f4a5352-8e98-4c62-8b64-391d83003ffc';
+$merchantId = 'M224V6SDP0M6P';
+$keyIndex = 1; // Ensure you define $keyIndex with an appropriate value
+
+// Prepare the payment request data (you should customize this)
+$paymentData = array(
+    'merchantId' => $merchantId,
+    'merchantTransactionId' => "ORDER_TRANSACTION_UNIQUE_ID",
+    "merchantUserId"=>"CUSTOMER_UNIQUE_ID",
+    'amount' => 1000, // Amount in paisa (10 INR)
+    'redirectUrl'=>"https://www.visa999.in/",
+    'redirectMode'=>"POST",
+    'callbackUrl'=>"https://www.visa999.in/",
+    "merchantOrderId"=> "YOUR_ORDER_ID",
+    "mobileNumber"=>"CUSTMER_MOBILE_NUMBER",
+    "message"=>"Order description",
+    "email"=>"CUSTMER_EMAIL_ID",
+    "shortName"=>"CUSTMER_Name",
+    "paymentInstrument"=> array(    
+        "type"=> "PAY_PAGE",
+    )
+);
+
+$jsonencode = json_encode($paymentData);
+$payloadMain = base64_encode($jsonencode);
+
+$payload = $payloadMain . "/pg/v1/pay" . $apiKey;
+$sha256 = hash("sha256", $payload);
+$final_x_header = $sha256 . '###' . $salt_index; // Ensure $salt_index is defined with an appropriate value
+$request = json_encode(array('request'=>$payloadMain));
+
+$curl = curl_init();
+curl_setopt_array($curl, [
+    CURLOPT_URL => "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay",
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_ENCODING => "",
+    CURLOPT_MAXREDIRS => 10,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => "POST",
+    CURLOPT_POSTFIELDS => $request,
+    CURLOPT_HTTPHEADER => [
+        "Content-Type: application/json",
+        "X-VERIFY: " . $final_x_header,
+        "accept: application/json"
+    ],
+]);
+
+$response = curl_exec($curl);
+$err = curl_error($curl);
+
+curl_close($curl);
+
+if ($err) {
+    echo "cURL Error #:" . $err;
+} else {
+    $res = json_decode($response);
+
+    if(isset($res->success) && $res->success=='1'){
+        $paymentCode=$res->code;
+        $paymentMsg=$res->message;
+        $payUrl=$res->data->instrumentResponse->redirectInfo->url;
+
+        header('Location:'.$payUrl);
+        exit; // Ensure to exit after redirection
+    }
+}
+?>
